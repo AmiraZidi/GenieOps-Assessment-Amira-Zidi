@@ -1,8 +1,23 @@
 @import "tailwindcss";
+@import "tailwindcss/preflight";
+@tailwind utilities;
+@font-face {
+  font-family: "MGN Humble";
+  src: url("/fonts/MGN Humble.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --font-poppins: "Poppins", sans-serif;
+  --font-mgn: "MGN Humble", sans-serif;
 }
 
 @theme inline {
@@ -23,4 +38,28 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* .neon {
+  text-shadow: 0 0 10px #3b82f6, 0 0 20px #3b82f6, 0 0 40px #3b82f6;
+} */
+
+.font-poppins {
+  font-family: var(--font-poppins);
+}
+
+.font-mgn {
+  font-family: var(--font-mgn);
+}
+
+.textBleu {
+  color: #0d1a6e;
+  font-weight: bold;
+}
+
+.dark-mode {
+  filter: grayscale(100%) contrast(1.2) brightness(0.9);
+  transition: filter 0.3s ease;
 }
