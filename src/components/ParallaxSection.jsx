@@ -6,6 +6,7 @@ import {
   useScroll,
   useTransform,
   useMotionTemplate,
+  useSpring,
 } from "framer-motion";
 
 const lines = [
@@ -41,43 +42,49 @@ const lines = [
     content: [{ text: "what's built to last.", highlight: false, font: "font-mgn" }],
   },
 ];
+const REVEAL_START = 0.09;
+const REVEAL_END   = 0.92;
+const WINDOW       = 0.25;
 
-const REVEAL_START = 0.05;
-const REVEAL_END = 0.9;
-const WINDOW = 0.13;
-
-function AnimatedLine({ line, index, scrollYProgress, total }) {
+function AnimatedLine({ line, index, smoothProgress, total }) {
   const isNeon = line.neon;
 
   const { start, end } = useMemo(() => {
-    if (isNeon) return { start: 0, end: 0.05 };
-
+    if (isNeon) {
+      const s = index * 0.04;
+      return { start: s, end: s + 0.1 };
+    }
     const nonNeonIndex = index - 2;
-    const spacing = (REVEAL_END - REVEAL_START) / (total - 2);
-    const start = REVEAL_START + nonNeonIndex * spacing;
-
-    return {
-      start,
-      end: Math.min(start + WINDOW, 1),
-    };
+    const nonNeonTotal = total - 2;
+    const spacing = (REVEAL_END - REVEAL_START) / (nonNeonTotal - 1);
+    const s = REVEAL_START + nonNeonIndex * spacing;
+    return { start: s, end: Math.min(s + WINDOW, 1) };
   }, [index, total, isNeon]);
 
+  const activeAt = start + (end - start) * 0.5;
+
   const opacity = useTransform(
-    scrollYProgress,
+    smoothProgress,
     [start, end],
-    isNeon ? [1, 1] : [0.08, 1]
+    isNeon ? [0.5, 1] : [0.04, 1]
   );
 
   const blurPx = useTransform(
-    scrollYProgress,
+    smoothProgress,
     [start, end],
-    isNeon ? [0, 0] : [12, 0]
+    isNeon ? [3, 0] : [18, 0]
   );
 
   const y = useTransform(
-    scrollYProgress,
+    smoothProgress,
     [start, end],
-    isNeon ? [0, 0] : [18, 0]
+    isNeon ? [8, 0] : [28, 0]
+  );
+
+  const neonOpacity = useTransform(
+    smoothProgress,
+    [start, activeAt, end],
+    [0, 0.5, 1]
   );
 
   const filter = useMotionTemplate`blur(${blurPx}px)`;
@@ -85,16 +92,56 @@ function AnimatedLine({ line, index, scrollYProgress, total }) {
   return (
     <motion.div
       className="parallax-line"
-      style={{ opacity, y, filter }}
+      style={{
+        opacity,
+        y,
+        filter,
+        willChange: "opacity, transform, filter",
+        position: "relative",
+      }}
     >
-      {line.content.map((seg, j) => (
-        <span
-          key={j}
-          className={`${seg.font} ${seg.highlight && isNeon ? "neon-text" : "text-muted"}`}
-        >
-          {seg.text}
-        </span>
-      ))}
+      {!isNeon && (
+        <motion.div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: "50%",
+            translateY: "-50%",
+            height: "1px",
+            width: useTransform(smoothProgress, [start, end], ["0%", "100%"]),
+            background: "linear-gradient(90deg, transparent, rgba(100,140,255,0.6), transparent)",
+            filter: "blur(2px)",
+            opacity: neonOpacity,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {line.content.map((seg, j) => {
+        const segColor = useTransform(
+          smoothProgress,
+          [start, end],
+          seg.highlight
+            ? ["rgba(255,255,255,0.9)", "rgba(255,255,255,1)"]
+            : ["rgba(255,255,255,0.15)", "rgba(255,255,255,0.55)"]
+        );
+
+        return (
+          <motion.span
+            key={j}
+            className={seg.font}
+            style={{
+              color: seg.highlight && isNeon ? undefined : segColor,
+              willChange: "color",
+            }}
+            {...(seg.highlight && isNeon
+              ? { className: `${seg.font} neon-text` }
+              : {})}
+          >
+            {seg.text}
+          </motion.span>
+        );
+      })}
     </motion.div>
   );
 }
@@ -107,15 +154,22 @@ export default function ParallaxSection() {
     offset: ["start start", "end end"],
   });
 
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 40,
+    damping: 20,
+    restDelta: 0.001,
+  });
+
   return (
-    <section ref={sectionRef} className="parallax-section">
-      
-      {/* Beam background */}
+    <section
+      ref={sectionRef}
+      className="parallax-section"
+      style={{ minHeight: "130vh" }}
+    >
       <div className="parallax-bg">
         <div className="parallax-beam" />
       </div>
 
-      {/* Text */}
       <div className="parallax-content">
         <div className="parallax-inner">
           {lines.map((line, i) => (
@@ -123,7 +177,7 @@ export default function ParallaxSection() {
               key={line.id}
               line={line}
               index={i}
-              scrollYProgress={scrollYProgress}
+              smoothProgress={smoothProgress}
               total={lines.length}
             />
           ))}
